@@ -1,0 +1,16 @@
+{
+  "name": "telegrambot",
+  "version": "1.0.0",
+  "description": "Siyam Tadkir Bot",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node --watch --env-file=.env main.mjs"
+  },
+  "keywords": [],
+  "author": "Zero",
+  "license": "ISC",
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.66.0"
+  }
+}
