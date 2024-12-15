@@ -1,7 +1,12 @@
 import TelegramBot from "node-telegram-bot-api";
 import cron from "node-cron";
-import { checkFileForId } from "./Utils/helperFunctions.js";
+import {
+  checkFileForIdOrCreate,
+  WriteIntoChatID,
+  getTomorrowDay
+} from "./Utils/helperFunctions.js";
 import fs from "fs/promises";
+import listen from "./keep_alive.js"
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -10,21 +15,6 @@ if (!TOKEN) {
     "Environment variable TELEGRAM_BOT_TOKEN is not set. Please configure it before running the bot."
   );
 }
-
-// Get the day for tomorrow
-const getTomorrowDay = () => {
-  const DaysOfTheWeek = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const date = new Date();
-  return DaysOfTheWeek[(date.getDay() + 1) % 7];
-};
 // the TASK VARIABLE
 let Task;
 
@@ -35,7 +25,7 @@ const bot = new TelegramBot(TOKEN, { polling: true });
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
-  const alreadySignedUp = await checkFileForId(chatId);
+  const alreadySignedUp = await checkFileForIdOrCreate(chatId);
   if (alreadySignedUp) {
     return bot.sendMessage(
       chatId,
@@ -44,6 +34,32 @@ bot.onText(/\/start/, async (msg) => {
   }
   rememberFasting();
   bot.sendMessage(chatId, "You're signed up for the remembrance!");
+});
+// Handle the /stop command
+bot.onText(/\/stop/, async (msg) => {
+  const chatId = msg.chat.id;
+  try {
+    const data = await fs.readFile("./chatIds.json", "utf8");
+    let chatIds = JSON.parse(data);
+
+    if (!Array.isArray(chatIds) || chatIds.length === 0) {
+      console.error("No valid chat IDs found");
+      return;
+    }
+    chatIds = chatIds.filter((cell) => cell.chatID != chatId);
+    if (await WriteIntoChatID(chatIds)) console.log(`${chatId} IS GONE`);
+    rememberFasting();
+    return bot.sendMessage(
+      chatId,
+      "Sad To see you go, Remember to still fast either way!!"
+    );
+  } catch (err) {
+    if (err.code == "ENOENT") {
+      console.log("NO REGISTERED USERS");
+    } else {
+      console.error("Error reading chat IDs:", err);
+    }
+  }
 });
 
 // Send fasting reminders
@@ -55,25 +71,37 @@ const rememberFasting = async () => {
   try {
     const data = await fs.readFile("./chatIds.json", "utf8");
     const chatIds = JSON.parse(data);
-
     if (!Array.isArray(chatIds) || chatIds.length === 0) {
       console.error("No valid chat IDs found. Task not scheduled.");
       return;
     }
-    Task = cron.schedule("0 12 * * Sunday,Wednesday", () => {
+    Task = cron.schedule("* 12 * * 0,3", () => {
       const tomorrow = getTomorrowDay();
-      chatIds.forEach(({ chatID }) => {
-        bot.sendMessage(chatID, `Tomorrow is ${tomorrow}, you should fast.`);
+      chatIds.forEach(async ({ chatID }) => {
+        try {
+          await bot.sendMessage(chatID, `Tomorrow is ${tomorrow}, you should fast.`);
+        } catch (err) {
+          console.error(err)
+        }
       });
-    });
-
+    }, {
+      timezone: "Africa/Casablanca"
+    }
+    );
     Task.start();
     console.log("Fasting reminder scheduled.");
     return Task;
   } catch (err) {
-    console.error("Error reading chat IDs:", err);
+    if (err.code == "ENOENT") {
+      console.log("NO REGISTERED USERS")
+    } else {
+      console.error("Error reading chat IDs:", err);
+    }
   }
 };
 
 // Initialize fasting reminders
 rememberFasting();
+
+// function for server public url
+listen();

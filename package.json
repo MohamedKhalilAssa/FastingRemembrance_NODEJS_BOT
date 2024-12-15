@@ -4,7 +4,7 @@
   "description": "Siyam Tadkir Bot",
   "main": "main.js",
   "scripts": {
-    "dev": "node --watch --env-file=.env main.mjs"
+    "dev": "node --watch main.mjs"
   },
   "keywords": [],
   "author": "Zero",
