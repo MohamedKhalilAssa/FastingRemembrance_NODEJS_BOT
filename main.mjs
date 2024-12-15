@@ -6,7 +6,6 @@ import {
   getTomorrowDay
 } from "./Utils/helperFunctions.js";
 import fs from "fs/promises";
-import listen from "./keep_alive.js"
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -102,6 +101,3 @@ const rememberFasting = async () => {
 
 // Initialize fasting reminders
 rememberFasting();
-
-// function for server public url
-listen();
